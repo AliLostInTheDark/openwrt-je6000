@@ -1,108 +1,244 @@
-![OpenWrt logo](include/logo.png)
+# OpenWrt Flashing Guide for JioExtender JE6000
 
-OpenWrt Project is a Linux operating system targeting embedded devices. Instead
-of trying to create a single, static firmware, OpenWrt provides a fully
-writable filesystem with package management. This frees you from the
-application selection and configuration provided by the vendor and allows you
-to customize the device through the use of packages to suit any application.
-For developers, OpenWrt is the framework to build an application without having
-to build a complete firmware around it; for users this means the ability for
-full customization, to use the device in ways never envisioned.
+Installation guide for flashing OpenWrt onto the **JioExtender JE6000**, a
+MediaTek MT7981B WiFi 6 range extender. This guide assumes basic familiarity
+with UART serial connections and TFTP servers.
 
-Sunshine!
+## ⚠️ Important Warnings
 
-## Download
+> [!WARNING]
+> Flashing custom firmware carries inherent risks. Make sure you understand
+> these steps fully before proceeding.
 
-Built firmware images are available for many architectures and come with a
-package selection to be used as WiFi home router. To quickly find a factory
-image usable to migrate from a vendor stock firmware to OpenWrt, try the
-*Firmware Selector*.
+> [!CAUTION]
+> **DO NOT CONNECT VCC** when attaching your USB to TTL adapter. Doing so will
+> permanently damage your board.
 
-* [OpenWrt Firmware Selector](https://firmware-selector.openwrt.org/)
+> [!IMPORTANT]
+> Flashing erases the vendor dual boot layout. The `ubi` partition is
+> reformatted and both vendor slots are destroyed. Confirm you can reach the
+> U-Boot menu over serial **before** you start, as that is the only recovery
+> path afterwards.
 
-If your device is supported, please follow the **Info** link to see install
-instructions or consult the support resources listed below.
+---
 
-##
+## Hardware Preparation
 
-An advanced user may require additional or specific package. (Toolchain, SDK, ...) For everything else than simple firmware download, try the wiki download page:
+### Step 1: UART Connection
 
-* [OpenWrt Wiki Download](https://openwrt.org/downloads)
+Connect your USB to TTL adapter to the UART headers on the board.
 
-## Development
+* **TX** to **RX**
+* **RX** to **TX**
+* **GND** to **GND**
 
-To build your own firmware you need a GNU/Linux, BSD or macOS system (case
-sensitive filesystem required). Cygwin is unsupported because of the lack of a
-case sensitive file system.
+### Step 2: Establish Serial Console
 
-### Requirements
+Use a serial terminal emulator such as **PuTTY**, **Tera Term**, **MobaXterm**
+or **gtkterm**.
 
-You need the following tools to compile OpenWrt, the package names vary between
-distributions. A complete list with distribution specific packages is found in
-the [Build System Setup](https://openwrt.org/docs/guide-developer/build-system/install-buildsystem)
-documentation.
+### Step 3: Serial Settings
+
+* **Baud Rate:** `115200`
+* **Data bits:** `8`
+* **Stop bits:** `1`
+* **Parity:** `None`
+* **Flow control:** `None`
+
+---
+
+## Accessing the Bootloader
+
+### Step 4: Enter the U-Boot Menu
+
+Power on the extender while watching the serial console. The **MediaTek U-Boot
+Boot Menu** appears with entries `1` through `9`, `a` and `0`:
 
 ```
-binutils bzip2 diff find flex gawk gcc-6+ getopt grep install libc-dev libz-dev
-make4.1+ perl python3.8+ rsync subversion unzip which
+*** U-Boot Boot Menu ***
+
+    1. Startup system (Default)
+    2. Upgrade firmware
+    3. Upgrade ATF BL2
+    4. Upgrade ATF FIP
+    ...
+    9. Start Web failsafe
+    a. Change boot configuration
+    0. U-Boot console
+
+Press UP/DOWN to move, ENTER to select, ESC to quit
 ```
 
-### Quickstart
+Use the arrow keys to select **`0. U-Boot console`** and press Enter.
 
-1. Run `./scripts/feeds update -a` to obtain all the latest package definitions
-   defined in feeds.conf / feeds.conf.default
+---
 
-2. Run `./scripts/feeds install -a` to install symlinks for all obtained
-   packages into package/feeds/
+## Flashing OpenWrt
 
-3. Run `make menuconfig` to select your preferred configuration for the
-   toolchain, target system & firmware packages.
+### Step 5: Prepare TFTP Server
 
-4. Run `make` to build your firmware. This will download all sources, build the
-   cross-compile toolchain and then cross-compile the GNU/Linux kernel & all chosen
-   applications for your target system.
+Set a static IP on your computer's ethernet interface:
 
-### Related Repositories
+* **IP Address:** `192.168.1.2`
+* **Gateway:** `192.168.1.1`
 
-The main repository uses multiple sub-repositories to manage packages of
-different categories. All packages are installed via the OpenWrt package
-manager called `opkg`. If you're looking to develop the web interface or port
-packages to OpenWrt, please find the fitting repository below.
+Host the **initramfs image** in the root directory of your TFTP server.
 
-* [LuCI Web Interface](https://github.com/openwrt/luci): Modern and modular
-  interface to control the device via a web browser.
+### Step 6: Load and Run Initramfs
 
-* [OpenWrt Packages](https://github.com/openwrt/packages): Community repository
-  of ported packages.
+From the U-Boot console, load the image into RAM and bypass signature
+verification:
 
-* [OpenWrt Routing](https://github.com/openwrt/routing): Packages specifically
-  focused on (mesh) routing.
+```sh
+setenv ipaddr 192.168.1.1
+setenv serverip 192.168.1.2
+tftpboot 0x46000000 openwrt-mediatek-filogic-jioextender_je6000-initramfs-kernel.bin
+fdt addr $(fdtcontroladdr)
+fdt rm /signature
+bootm
+```
 
-* [OpenWrt Video](https://github.com/openwrt/video): Packages specifically
-  focused on display servers and clients (Xorg and Wayland).
+Alternatively, select **`2. Upgrade firmware`** from the boot menu and transfer
+the initramfs image that way.
 
-## Support Information
+### Step 7: Flash Sysupgrade Image
 
-For a list of supported devices see the [OpenWrt Hardware Database](https://openwrt.org/supported_devices)
+Once OpenWrt is running from RAM, copy the `sysupgrade` image to `/tmp` (via
+`scp` or a local web server) and flash it:
 
-### Documentation
+```sh
+sysupgrade -n /tmp/openwrt-mediatek-filogic-jioextender_je6000-squashfs-sysupgrade.bin
+```
 
-* [Quick Start Guide](https://openwrt.org/docs/guide-quick-start/start)
-* [User Guide](https://openwrt.org/docs/guide-user/start)
-* [Developer Documentation](https://openwrt.org/docs/guide-developer/start)
-* [Technical Reference](https://openwrt.org/docs/techref/start)
+You can also use the LuCI web interface at `192.168.1.1` and the built-in
+*Backup / Flash Firmware* page.
 
-### Support Community
+> [!NOTE]
+> Flash from an initramfs built from **this** tree. It contains the
+> `uboot-envtools` entry that generates `/etc/fw_env.config`. Without it
+> `fw_setenv` fails during the upgrade, `bootcmd` is never written, and the
+> board falls through to the U-Boot web failsafe on the next boot.
 
-* [Forum](https://forum.openwrt.org): For usage, projects, discussions and hardware advise.
-* [Support Chat](https://webchat.oftc.net/#openwrt): Channel `#openwrt` on **oftc.net**.
+### Step 8: Restore the Boot Delay
 
-### Developer Community
+The upgrade helper sets `bootdelay` to `0`, which removes the boot menu
+interrupt window. Set it back once OpenWrt is up:
 
-* [Bug Reports](https://bugs.openwrt.org): Report bugs in OpenWrt
-* [Dev Mailing List](https://lists.openwrt.org/mailman/listinfo/openwrt-devel): Send patches
-* [Dev Chat](https://webchat.oftc.net/#openwrt-devel): Channel `#openwrt-devel` on **oftc.net**.
+```sh
+fw_setenv bootdelay 3
+```
 
-## License
+Verify the environment was written correctly:
 
-OpenWrt is licensed under GPL-2.0
+```sh
+fw_printenv bootcmd bootdelay
+```
+
+---
+
+## Recovery
+
+If the board drops to the U-Boot web failsafe, the firmware is on flash but
+`bootcmd` was not written. From the U-Boot console:
+
+```sh
+setenv bootcmd 'ubi read 46000000 kernel;fdt addr $(fdtcontroladdr);fdt rm /signature;bootm 0x46000000'
+setenv bootdelay 3
+setenv ipaddr ''
+saveenv
+run bootcmd
+```
+
+---
+
+## Hardware
+
+| | |
+|---|---|
+| SoC | MediaTek MT7981B, 2x Cortex-A53 @ 1.3 GHz |
+| RAM | 512 MB DDR4 |
+| Flash | 256 MB SPI-NAND, Winbond W25N02KV, NMBM |
+| Ethernet | 1x 1000M, SoC integrated GbE PHY on gmac1 |
+| WiFi | MT7981 2x2 2.4 GHz + 2x2 5 GHz (DBDC, two shared dual-band antennas) |
+| USB | none usable, both connectors are power inputs |
+| LEDs | red / green / blue status |
+| Buttons | reset |
+| Serial | 115200 8N1, 3.3V |
+
+## Flash Layout
+
+Nine partitions on the NMBM-mapped device, matching the vendor bootloader's
+`mtd list` and `mtdparts` exactly.
+
+| partition | offset | size |
+|---|---|---|
+| BL2 | `0x000000` | 1024k |
+| u-boot-env | `0x100000` | 512k |
+| Factory | `0x180000` | 2048k |
+| FIP | `0x380000` | 2048k |
+| ubi | `0x580000` | 143360k |
+| ubi2 | `0x9180000` | 90112k |
+| BDF | `0xe980000` | 2048k |
+| MFG | `0xeb80000` | 2048k |
+| Jio-Reserved | `0xed80000` | 2048k |
+
+The raw flash is 256 MiB. NMBM maps the lower 240 MiB and reserves the top
+16 MiB for bad block management, so the partitions end at `0xef80000`.
+
+The MTD `u-boot-env` partition is unused. The live environment is a UBI volume
+inside `ubi`, hence `UBOOTENV_IN_UBI := 1`.
+
+## MAC Addresses
+
+A six byte base address sits at offset 0 of the `MFG` partition and is read
+through a `mac-base` nvmem cell. Offsets match the stock firmware:
+
+| offset | used by |
+|---|---|
+| base + 0 | ethernet, label MAC |
+| base + 1 | unused (single port) |
+| base + 2 | 2.4 GHz |
+| base + 3 | 5 GHz |
+
+`label-mac-device` is deliberately not set. It resolves a static `mac-address`
+device tree property, which does not exist when the address comes from nvmem,
+so the label MAC is set from `02_network` instead.
+
+## Notes on the Vendor Firmware
+
+The stock firmware ships MediaTek's **unmodified reference device tree**
+(`model = "MediaTek MT7981 RFB"`), so it describes hardware this board does not
+have.
+
+**No DSA switch.** The JE6000 has one port and no MT7531. An image expecting
+one fails with `mt7530-mdio ... probe ... failed with error -110`. The port is
+the SoC's integrated PHY on `gmac1` in `gmii` mode.
+
+**No usable USB.** The vendor sets `xhci` to `disabled`. The controller itself
+works if enabled, probing and registering a root hub reporting `Powered`, but
+no device ever enumerates because neither connector is a host port. One powers
+the wall-adapter variant, the other allows powering the unit when wall mounted.
+`xhci` is therefore left disabled.
+
+**`spi1` is reference-board boilerplate.** The vendor enables it only for a
+`silabs,proslic_spi` telephony chip that is not present on this board.
+
+## Known Issues
+
+* **Vendor SKU power limits are not applied.** The 2 MiB `BDF` partition holds
+  a vendor power limit table, a header plus an MD5 and a plain text CSV of per
+  channel and per rate limits for both bands. mainline mt76 has no consumer for
+  it, so transmit limits come from the configured regulatory domain instead.
+  Set the country code accordingly.
+
+## Status
+
+| | |
+|---|---|
+| Ethernet | working, 1 Gbps |
+| WiFi 2.4 / 5 GHz | working, both radios, distinct MACs |
+| LEDs | working, all three colours |
+| Reset button | working |
+| Flash, NMBM, all partitions | working |
+| sysupgrade, boot from NAND | working |
+| USB | not applicable, no host port |
