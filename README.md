@@ -71,11 +71,25 @@ Press UP/DOWN to move, ENTER to select, ESC to quit
 
 Use the arrow keys to select **`0. U-Boot console`** and press Enter.
 
+### Step 5: Shell Authentication Bypass
+
+Press `Enter` **6 times**.
+
+*(This accounts for 2 retries each for the username and password, eventually
+landing you on the default authentication shell.)*
+
+### Step 6: Login
+
+Enter the default factory credentials:
+
+* **Username:** `cheetah12`
+* **Password:** `RtFQm@tb9P(K6vy2`
+
 ---
 
 ## Flashing OpenWrt
 
-### Step 5: Prepare TFTP Server
+### Step 7: Prepare TFTP Server
 
 Set a static IP on your computer's ethernet interface:
 
@@ -84,7 +98,7 @@ Set a static IP on your computer's ethernet interface:
 
 Host the **initramfs image** in the root directory of your TFTP server.
 
-### Step 6: Load and Run Initramfs
+### Step 8: Load and Run Initramfs
 
 From the U-Boot console, load the image into RAM and bypass signature
 verification:
@@ -101,7 +115,7 @@ bootm
 Alternatively, select **`2. Upgrade firmware`** from the boot menu and transfer
 the initramfs image that way.
 
-### Step 7: Flash Sysupgrade Image
+### Step 9: Flash Sysupgrade Image
 
 Once OpenWrt is running from RAM, copy the `sysupgrade` image to `/tmp` (via
 `scp` or a local web server) and flash it:
@@ -119,7 +133,7 @@ You can also use the LuCI web interface at `192.168.1.1` and the built-in
 > `fw_setenv` fails during the upgrade, `bootcmd` is never written, and the
 > board falls through to the U-Boot web failsafe on the next boot.
 
-### Step 8: Restore the Boot Delay
+### Step 10: Restore the Boot Delay
 
 The upgrade helper sets `bootdelay` to `0`, which removes the boot menu
 interrupt window. Set it back once OpenWrt is up:
