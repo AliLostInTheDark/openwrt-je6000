@@ -20,6 +20,55 @@ with UART serial connections and TFTP servers.
 > U-Boot menu over serial **before** you start, as that is the only recovery
 > path afterwards.
 
+> [!IMPORTANT]
+> **Back up every MTD partition before flashing.** `Factory` holds the WiFi
+> calibration EEPROM and `MFG` holds the MAC base address; neither can be
+> regenerated if lost, and without them the board will not have working radios
+> or its original addresses. Do this from the initramfs, before running
+> `sysupgrade`.
+
+### Backing up the vendor partitions
+
+Boot the initramfs first (steps 1-8), then dump all nine partitions. The
+device is reachable at `192.168.1.1`.
+
+From your computer, pull each one over SSH:
+
+```sh
+for i in 0 1 2 3 4 5 6 7 8; do
+    ssh root@192.168.1.1 "cat /dev/mtd$i" > "je6000-mtd$i.bin"
+done
+```
+
+Or dump them on the device first and copy them off in one go:
+
+```sh
+ssh root@192.168.1.1 'for i in 0 1 2 3 4 5 6 7 8; do dd if=/dev/mtd$i of=/tmp/mtd$i.bin; done'
+scp root@192.168.1.1:/tmp/mtd*.bin .
+```
+
+The LuCI web interface at `192.168.1.1` can do the same thing without a
+terminal: **System → Backup / Flash Firmware → Save mtdblock contents**, then
+pick each partition in turn and download it.
+
+Expected sizes, useful for confirming the dumps are complete:
+
+| dev | partition | size |
+|---|---|---|
+| mtd0 | BL2 | 1 MiB |
+| mtd1 | u-boot-env | 512 KiB |
+| mtd2 | Factory | 2 MiB |
+| mtd3 | FIP | 2 MiB |
+| mtd4 | ubi | 140 MiB |
+| mtd5 | ubi2 | 88 MiB |
+| mtd6 | BDF | 2 MiB |
+| mtd7 | MFG | 2 MiB |
+| mtd8 | Jio-Reserved | 2 MiB |
+
+> [!CAUTION]
+> `MFG` contains your device's MAC address and factory-provisioned
+> credentials. Keep these dumps private and do not publish them.
+
 ---
 
 ## Hardware Preparation
