@@ -2188,6 +2188,26 @@ define Device/jdcloud_re-cp-03
 endef
 TARGET_DEVICES += jdcloud_re-cp-03
 
+define Device/jioextender_je6000
+  DEVICE_VENDOR := JioExtender
+  DEVICE_MODEL := JE6000
+  DEVICE_DTS := mt7981b-jioextender-je6000
+  DEVICE_DTS_DIR := ../dts
+  UBINIZE_OPTS := -E 5
+  UBOOTENV_IN_UBI := 1
+  BLOCKSIZE := 128k
+  PAGESIZE := 2048
+  DEVICE_PACKAGES := kmod-mt7915e kmod-mt7981-firmware mt7981-wo-firmware
+ifeq ($(IB),)
+ifneq ($(CONFIG_TARGET_ROOTFS_INITRAMFS),)
+  ARTIFACTS := initramfs-factory.ubi
+  ARTIFACT/initramfs-factory.ubi := append-image-stage initramfs-kernel.bin | ubinize-kernel
+endif
+endif
+  IMAGE/sysupgrade.bin := sysupgrade-tar | append-metadata
+endef
+TARGET_DEVICES += jioextender_je6000
+
 define Device/jiorouter_ax6000-jidu6101
   DEVICE_VENDOR := JioRouter
   DEVICE_MODEL := AX6000

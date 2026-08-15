@@ -133,6 +133,7 @@ mediatek_setup_interfaces()
 	cudy,ap3000outdoor-v1|\
 	cudy,ap3000-v1|\
 	cudy,re3000-v1|\
+	jioextender,je6000|\
 	kebidumei,ax3000-u22|\
 	keenetic,kap-630|\
 	netcraze,nap-630|\
@@ -294,6 +295,9 @@ mediatek_setup_macs()
 		lan_mac=$(macaddr_generate_from_mmc_cid mmcblk0)
 		wan_mac=$(macaddr_add "$lan_mac" 1)
 		label_mac=$wan_mac
+		;;
+	jioextender,je6000)
+		label_mac=$(mtd_get_mac_binary "MFG" 0x0)
 		;;
 	jiorouter,ax6000-jidu6101)
 		label_mac=$(mtd_get_mac_ascii u-boot-env mac)
